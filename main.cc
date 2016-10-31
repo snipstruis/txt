@@ -41,7 +41,7 @@ int main(int argc, char** argv){
     stbtt_fontinfo font;
     stbtt_InitFont(&font, ttf, stbtt_GetFontOffsetForIndex(ttf,0));
 
-    unsigned char* glyph = (unsigned char*)malloc(1<<12);
+    unsigned char* bitmap = (unsigned char*)malloc(1<<12);
 
 
     // run for 240 frames
@@ -107,7 +107,7 @@ int main(int argc, char** argv){
                 continue;
             }
 
-#if 1       // draw bounding boxes
+#if 0       // draw bounding boxes
             glBegin(GL_QUADS);
             glColor4f(0,1,1,0.5);
             glVertex2f(ax,ay);
@@ -121,8 +121,8 @@ int main(int argc, char** argv){
 
             // render glyph to bitmap
             int box_w=x1-x0, box_h=y1-y0;
-            memset(glyph,0,box_w*box_h);
-            stbtt_MakeCodepointBitmapSubpixel(&font,glyph,box_w,box_h,box_w,
+            memset(bitmap,0,box_w*box_h);
+            stbtt_MakeCodepointBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
                     scale,scale, x_shift,y_shift,*c);
 
             auto t_b = std::chrono::high_resolution_clock::now();
@@ -130,7 +130,7 @@ int main(int argc, char** argv){
             // draw bitmap to screen
             glRasterPos2f(ax,ay);
             glPixelZoom(1,-1);
-            glDrawPixels(box_w,box_h,GL_ALPHA,GL_UNSIGNED_BYTE,glyph);
+            glDrawPixels(box_w,box_h,GL_ALPHA,GL_UNSIGNED_BYTE,bitmap);
 
             auto t_c = std::chrono::high_resolution_clock::now();
             d_bitmap += t_b-t_a;
