@@ -1,5 +1,5 @@
-int tessellate(stbtt__point** out, const stbtt_fontinfo *info, int glyph) {
-    stbtt__vertex* vertices;
+int tessellate(stbtt__point** out, const stbtt_fontinfo *info, int glyph, int scale_x, int scale_y) {
+    stbtt_vertex* vertices;
     int num_verts = stbtt_GetGlyphShape(info, glyph, &vertices);
     
     float flatness_in_pixels = 0.35f;

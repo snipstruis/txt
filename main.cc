@@ -1,12 +1,15 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+#include "tessellate.h"
+
 #define GL_GLEXT_PROTOTYPES
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+#include "mesh.h"
+
 #include <cstring>
 #include <cstdio>
 #include <chrono>
-#include "mesh.h"
 
 int readFile(char const * filename, unsigned char** out){
     FILE* fp = fopen(filename,"r");
