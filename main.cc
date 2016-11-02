@@ -16,8 +16,7 @@ int readFile(char const * filename, unsigned char** out){
     fseek(fp, 0, SEEK_END);
     int size = ftell(fp);
     rewind(fp);
-    *out = (unsigned char*)malloc(size + 1);
-    fread(*out, size, 1, fp);
+    *out = (unsigned char*)malloc(size + 1); fread(*out, size, 1, fp);
     (*out)[size]=0;
     fclose(fp);
     return size;
@@ -178,4 +177,8 @@ int main(int argc, char** argv){
         
         SDL_GL_SwapWindow(win);
     }
+
+    free(screenBuffer);
+    free(bitmap);
+    free(text);
 }
