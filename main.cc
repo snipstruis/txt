@@ -45,10 +45,12 @@ int main(int argc, char** argv){
     stbtt_InitFont(&font, ttf, stbtt_GetFontOffsetForIndex(ttf,0));
 
     unsigned char* bitmap = (unsigned char*)malloc(1<<12);
+    unsigned char* screenBuffer = (unsigned char*)(malloc(1920*9000));
 
 
     // run for 240 frames
     for(int t=0; t<240; t++){
+
         auto t_begin = std::chrono::high_resolution_clock::now();
         // handle events
         for(SDL_Event e;SDL_PollEvent(&e);){ if(e.type==SDL_QUIT) return 0; }
@@ -59,12 +61,15 @@ int main(int argc, char** argv){
         glClear(GL_COLOR_BUFFER_BIT);
         glViewport(0, 0, w, h);
 
+        memset(screenBuffer,0,w*h);
+
         // get font properties at current size
         float px = 45.0-(t/6);
         float scale = stbtt_ScaleForPixelHeight(&font,px);
         int ascent,descent,linegap; stbtt_GetFontVMetrics(&font,&ascent,&descent,&linegap);
         float baseline = (float)ascent*scale;
-        float x=-0.4*w, y=0.4*h-baseline;
+        float x= 0.1*w;
+        float y = 0.1*h - baseline;
 
 #if 0   // draw base line
         glBegin(GL_LINES);
@@ -87,34 +92,38 @@ int main(int argc, char** argv){
 
             // calculate GL-coordinates of the bounding box of the glyph
             // remember: the subpixel offset is already baked into the bitmap
-            float ax=(floor(x)+(float)x0)/(w/2.f), // upper left
+            /*float ax=(floor(x)+(float)x0)/(w/2.f), // upper left
                   ay=(floor(y)-(float)y0)/(h/2.f),
                   bx=(floor(x)+(float)x1)/(w/2.f), // lower right
-                  by=(floor(y)-(float)y1)/(h/2.f);
+                  by=(floor(y)-(float)y1)/(h/2.f);*/
 
-            // don't draw on bottom margin
-            if((y/(h/2.f))<-0.8) break;
+            if (y > 0.9*h) {
+              y = 0.9*h;
+              break;
+            }
 
-            // don't draw on right margin
-            if(bx>0.8){
-                x=-0.4*w; 
-                y-=px+linegap;
+            if(x>w*0.9){
+                x = 0.1*w;
+                y += px+linegap;
                 c--;
                 continue;
             }
 
             // handle newline
             if(*c=='\n'){
-                x=-0.4*w; 
-                y-=1.5*(px+linegap);
+                x = 0.1*w;
+                y += 1.5*(px+linegap);
                 continue;
             }
 
+
+
+
 #if 0       // draw bounding boxes
-            glBegin(GL_QUADS);
+            glBegin(GLQUADS);
             glColor4f(0,1,1,0.5);
             glVertex2f(ax,ay);
-            glVertex2f(bx,ay);
+            glVetex2f(bx,ay);
             glVertex2f(bx,by);
             glVertex2f(ax,by);
             glEnd();
@@ -128,12 +137,22 @@ int main(int argc, char** argv){
             stbtt_MakeCodepointBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
                     scale,scale, x_shift,y_shift,*c);
 
+            for (int yy = 0; yy < box_h; yy++) {
+              for (int xx = 0;  xx < box_w; xx++) {
+                unsigned char pix = bitmap[xx+yy*box_w];
+                unsigned char* p = screenBuffer + int(x) + x0 + xx + int(y)*w + ((yy+y0)*w);
+                int val = (int)(*p) + (int)pix;
+                if (val > 255) {
+                  val = 255;
+                }
+                *p = val;
+              }
+            }
             auto t_b = std::chrono::high_resolution_clock::now();
 
-            // draw bitmap to screen
-            glRasterPos2f(ax,ay);
-            glPixelZoom(1,-1);
-            glDrawPixels(box_w,box_h,GL_ALPHA,GL_UNSIGNED_BYTE,bitmap);
+            // draw bitmap to screen buffer
+             
+
 
             auto t_c = std::chrono::high_resolution_clock::now();
             d_bitmap += t_b-t_a;
@@ -145,6 +164,10 @@ int main(int argc, char** argv){
             x+=advance*scale;
             if(c[1]) x+=scale*stbtt_GetCodepointKernAdvance(&font,c[0],c[1]);
         }
+        // draw the screen buffer
+        glRasterPos2f(-1,1);
+        glPixelZoom(1,-1);
+        glDrawPixels(w,h,GL_LUMINANCE,GL_UNSIGNED_BYTE,screenBuffer);
 
         auto t_end = std::chrono::high_resolution_clock::now();
         long frametime = std::chrono::duration_cast<std::chrono::nanoseconds>(t_end-t_begin).count();
