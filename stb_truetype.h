@@ -13,8 +13,8 @@
 //        hinting? (no longer patented)
 //        cleartype-style AA?
 //        optimize: use simple memory allocator for intermediates
-//        optimize: build edge-list directly from curves
-//        optimize: rasterize directly from curves?
+//        optimize: build edge-list directly from curves  
+//        optimize: rasterize directly from curves? <-- senseless
 //
 // ADDITIONAL CONTRIBUTORS
 //
@@ -1662,8 +1662,10 @@ typedef struct stbtt__edge {
 } stbtt__edge;
 
 
+/// https://en.wikipedia.org/wiki/Scanline_rendering
 typedef struct stbtt__active_edge
 {
+   // sort link
    struct stbtt__active_edge *next;
    #if STBTT_RASTERIZER_VERSION==1
    int x,dx;
@@ -1671,6 +1673,8 @@ typedef struct stbtt__active_edge
    int direction;
    #elif STBTT_RASTERIZER_VERSION==2
    float fx,fdx,fdy;
+
+   // the gradient
    float direction;
    float sy;
    float ey;
@@ -1775,6 +1779,7 @@ static void stbtt__fill_active_edges(unsigned char *scanline, int len, stbtt__ac
 
 static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e, int n, int vsubsample, int off_x, int off_y, void *userdata)
 {
+
    stbtt__hheap hh = { 0, 0, 0 };
    stbtt__active_edge *active = NULL;
    int y,j=0;
@@ -2279,37 +2284,65 @@ static void stbtt__rasterize(stbtt__bitmap *result, stbtt__point *pts, int *wcou
    // vsubsample should divide 255 evenly; otherwise we won't reach full opacity
 
    // now we have to blow out the windings into explicit edge lists
+   // n is the amount of vertices
    n = 0;
    for (i=0; i < windings; ++i)
       n += wcount[i];
 
+   // there are a maximum amount edges an n-sized polygon
    e = (stbtt__edge *) STBTT_malloc(sizeof(*e) * (n+1), userdata); // add an extra one as a sentinel
+   // if there was no space, return
    if (e == 0) return;
+
+   // we reset n, because the author decided to reuse the variable for a different a purpose
    n = 0;
 
-   m=0;
+   // m is the vertex index
+   m = 0;
+
+   // for each of the polygons, find the edges, and
+   // put them in the edge list
    for (i=0; i < windings; ++i) {
+      // get the vertex at position m
       stbtt__point *p = pts + m;
-      m += wcount[i];
+
+      // Consider all points except ourself
+      // setting it to 0 would work as well,
+      // as the "ourself" case will get thrown out
+      // in the "horizontal edge" detection
       j = wcount[i]-1;
+      // We walk through the polygon and connect
+      // the adjacent nodes with an edge as we
+      // walk through the list
       for (k=0; k < wcount[i]; j=k++) {
-         int a=k,b=j;
+         int a = k;
+         int b = j;
          // skip the edge if horizontal
+         // you cannot find an intersection with the scanline
          if (p[j].y == p[k].y)
             continue;
-         // add edge from j to k to the list
+
+         // if we want to invert, we flip the edges. this is a no-op at the moment
          e[n].invert = 0;
          if (invert ? p[j].y > p[k].y : p[j].y < p[k].y) {
             e[n].invert = 1;
             a=j,b=k;
          }
+
+         // add edge from j to k to the list
          e[n].x0 = p[a].x * scale_x + shift_x;
+         // note: vsubsample is simply 1 in the rasterizer v2
          e[n].y0 = (p[a].y * y_scale_inv + shift_y) * vsubsample;
          e[n].x1 = p[b].x * scale_x + shift_x;
+         // note: vsubsample is simply 1 in the rasterizer v2
          e[n].y1 = (p[b].y * y_scale_inv + shift_y) * vsubsample;
          ++n;
       }
+      // the next polygon we will look at is:
+      m += wcount[i];
    }
+
+   // INTERCEPT here
 
    // now sort the edges by their highest point (should snap to integer, and then by x)
    //STBTT_sort(e, n, sizeof(e[0]), stbtt__edge_compare);
