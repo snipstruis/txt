@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cstdio>
 #include <chrono>
+#include <numeric>
 
 int readFile(char const * filename, unsigned char** out){
     FILE* fp = fopen(filename,"r");
@@ -46,6 +47,7 @@ int main(int argc, char** argv){
     unsigned char* bitmap = (unsigned char*)malloc(1<<12);
     unsigned char* screenBuffer = (unsigned char*)(malloc(1920*9000));
 
+    std::vector<double> frametimes;
 
     // run for 240 frames
     for(int t=0; t<240; t++){
@@ -79,8 +81,6 @@ int main(int argc, char** argv){
         }
         glEnd();
 #endif
-        auto d_bitmap=std::chrono::duration<long,std::nano>(0);
-        auto d_screen=std::chrono::duration<long,std::nano>(0);
         // loop through characters
         for(unsigned char const *c=text;*c;c++){
             // bounding box (in pixels) of the glyph
@@ -128,8 +128,6 @@ int main(int argc, char** argv){
             glEnd();
 #endif
 
-            auto t_a = std::chrono::high_resolution_clock::now();
-
             // render glyph to bitmap
             int box_w=x1-x0, box_h=y1-y0;
             memset(bitmap,0,box_w*box_h);
@@ -147,15 +145,6 @@ int main(int argc, char** argv){
                 *p = val;
               }
             }
-            auto t_b = std::chrono::high_resolution_clock::now();
-
-            // draw bitmap to screen buffer
-             
-
-
-            auto t_c = std::chrono::high_resolution_clock::now();
-            d_bitmap += t_b-t_a;
-            d_screen += t_c-t_b;
 
             // advance the x position with the correct ammount
             int advance; 
@@ -169,15 +158,16 @@ int main(int argc, char** argv){
         glDrawPixels(w,h,GL_LUMINANCE,GL_UNSIGNED_BYTE,screenBuffer);
 
         auto t_end = std::chrono::high_resolution_clock::now();
-        long frametime = std::chrono::duration_cast<std::chrono::nanoseconds>(t_end-t_begin).count();
+        frametimes.push_back(std::chrono::duration_cast<std::chrono::duration<double,std::milli>>(t_end-t_begin).count());
 
-        printf("%3d:\tb:%ld\ts:%ld\tt:%ld\tbt:%f\tst:%f\n",
-                t, d_bitmap.count(), d_screen.count(), frametime,
-                double(d_bitmap.count())/double(frametime), double(d_screen.count())/double(frametime));
-        
         SDL_GL_SwapWindow(win);
     }
-
+    for(int i=0; i<8; i++){
+        auto beg = i*30;
+        auto end = (i+1)*30-1;
+        double res = std::accumulate(frametimes.begin()+beg, frametimes.begin()+end, 0.0);
+        printf("%.3f\n",res/30);
+    }
     free(screenBuffer);
     free(bitmap);
     free(text);
