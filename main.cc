@@ -1,16 +1,15 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
-#include "tessellate.h"
 
 #define GL_GLEXT_PROTOTYPES
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
-#include "mesh.h"
 
 #include <cstring>
 #include <cstdio>
 #include <chrono>
 #include <numeric>
+#include <vector>
 
 int readFile(char const * filename, unsigned char** out){
     FILE* fp = fopen(filename,"r");
@@ -26,11 +25,7 @@ int readFile(char const * filename, unsigned char** out){
 int main(int argc, char** argv){
     char const* font_file = argc>1 ? argv[1] : "fonts/LibreBaskerville-Italic.ttf";
     char const* text_file = argc>2 ? argv[2] : "text/80days.txt";
-
-    // load textfile
-    unsigned char* text;
-    readFile(text_file,&text);
-    
+   
     // init window
     SDL_Window *win = SDL_CreateWindow("font rendering test", 0, 0, 640, 480, 
                                        SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
@@ -43,6 +38,21 @@ int main(int argc, char** argv){
     readFile(font_file,&ttf);
     stbtt_fontinfo font;
     stbtt_InitFont(&font, ttf, stbtt_GetFontOffsetForIndex(ttf,0));
+
+    // load text
+    int* glyphs;
+    {
+        unsigned char* text;
+        int txt_size = readFile(text_file,&text);
+        glyphs = (int*)malloc(1+txt_size*sizeof(int));
+        for(int i=0; i<txt_size; i++)
+            glyphs[i] = stbtt_FindGlyphIndex(&font,text[i]);
+        glyphs[txt_size]=-1;
+        free(text);
+    }
+
+    int newline_glyph = stbtt_FindGlyphIndex(&font,'\n');
+
 
     unsigned char* bitmap = (unsigned char*)malloc(1<<12);
     unsigned char* screenBuffer = (unsigned char*)(malloc(1920*9000));
@@ -82,11 +92,11 @@ int main(int argc, char** argv){
         glEnd();
 #endif
         // loop through characters
-        for(unsigned char const *c=text;*c;c++){
+        for(int const *c=glyphs;*c!=-1;c++){
             // bounding box (in pixels) of the glyph
             float x_shift=x-floor(x), y_shift=floor(y)-y;
             int x0,y0,x1,y1;
-            stbtt_GetCodepointBitmapBoxSubpixel(&font,*c,scale,scale,
+            stbtt_GetGlyphBitmapBoxSubpixel(&font,*c,scale,scale,
                     x_shift,y_shift,&x0,&y0,&x1,&y1);
 
             // calculate GL-coordinates of the bounding box of the glyph
@@ -109,7 +119,7 @@ int main(int argc, char** argv){
             }
 
             // handle newline
-            if(*c=='\n'){
+            if(*c==newline_glyph){
                 x = 0.1*w;
                 y += 1.5*(px+linegap);
                 continue;
@@ -131,7 +141,7 @@ int main(int argc, char** argv){
             // render glyph to bitmap
             int box_w=x1-x0, box_h=y1-y0;
             memset(bitmap,0,box_w*box_h);
-            stbtt_MakeCodepointBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
+            stbtt_MakeGlyphBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
                     scale,scale, x_shift,y_shift,*c);
 
             for (int yy = 0; yy < box_h; yy++) {
@@ -148,9 +158,9 @@ int main(int argc, char** argv){
 
             // advance the x position with the correct ammount
             int advance; 
-            stbtt_GetCodepointHMetrics(&font, *c, &advance,NULL);
+            stbtt_GetGlyphHMetrics(&font, *c, &advance,NULL);
             x+=advance*scale;
-            if(c[1]) x+=scale*stbtt_GetCodepointKernAdvance(&font,c[0],c[1]);
+            if(c[1]) x+=scale*stbtt_GetGlyphKernAdvance(&font,c[0],c[1]);
         }
         // draw the screen buffer
         glRasterPos2f(-1,1);
@@ -170,5 +180,5 @@ int main(int argc, char** argv){
     }
     free(screenBuffer);
     free(bitmap);
-    free(text);
+    free(glyphs);
 }
