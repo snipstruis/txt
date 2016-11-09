@@ -2165,7 +2165,10 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
 
          // here follows highly dangerous and srsly optimized code
          for (i = 0; i < result->w / 4; i+=4) {
+            // _mm_cvtps_pi8
+
           __m128 k128;
+
           union {
             __m128i m128;
             uint32_t bytes[4]; // srry i lied
@@ -2208,8 +2211,8 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          
          // the rest. TODO make sure float sum is sensible
          //
-         int rest = result->w + (result->w & 0x03);
-         for (; i < rest; i++) {
+         int rest = result->w & 0x03;
+         for (; i < result->w + rest; i++) {
             float k;
             int m;
             k = scanline[i] + sums[i];
@@ -2341,6 +2344,7 @@ static void stbtt__sort_edges_quicksort(stbtt__edge *p, int n)
 
 static void stbtt__sort_edges(stbtt__edge *p, int n)
 {
+   
    stbtt__sort_edges_quicksort(p, n);
    stbtt__sort_edges_ins_sort(p, n);
 }
@@ -2590,9 +2594,26 @@ STBTT_DEF unsigned char *stbtt_GetGlyphBitmapSubpixel(const stbtt_fontinfo *info
    return gbm.pixels;
 }   
 
+
 STBTT_DEF unsigned char *stbtt_GetGlyphBitmap(const stbtt_fontinfo *info, float scale_x, float scale_y, int glyph, int *width, int *height, int *xoff, int *yoff)
 {
    return stbtt_GetGlyphBitmapSubpixel(info, scale_x, scale_y, 0.0f, 0.0f, glyph, width, height, xoff, yoff);
+}
+
+STBTT_DEF void stbtt_MakeGlyphBitmapSubpixel2(const stbtt_fontinfo *info, unsigned char *output, int out_w, int out_h, int out_stride, float scale_x, float scale_y, float shift_x, float shift_y, int glyph, stbtt_vertex **vertices, int *num_verts)
+{
+   int ix0,iy0;
+   stbtt__bitmap gbm;   
+
+   stbtt_GetGlyphBitmapBoxSubpixel(info, glyph, scale_x, scale_y, shift_x, shift_y, &ix0,&iy0,0,0);
+   gbm.pixels = output;
+   gbm.w = out_w;
+   gbm.h = out_h;
+   gbm.stride = out_stride;
+
+   if (gbm.w && gbm.h)
+      stbtt_Rasterize(&gbm, 0.35f, vertices[glyph], num_verts[glyph], scale_x, scale_y, shift_x, shift_y, ix0,iy0, 1, info->userdata);
+
 }
 
 STBTT_DEF void stbtt_MakeGlyphBitmapSubpixel(const stbtt_fontinfo *info, unsigned char *output, int out_w, int out_h, int out_stride, float scale_x, float scale_y, float shift_x, float shift_y, int glyph)

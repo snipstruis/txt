@@ -56,6 +56,15 @@ int main(int argc, char** argv){
     int newline_glyph = stbtt_FindGlyphIndex(&font,'\n');
 
 
+
+    stbtt_vertex **vertices;
+    vertices = (stbtt_vertex **)malloc(1024*sizeof(stbtt_vertex*));
+    int num_verts[1024];
+
+    for (int i = 0; i < 1024; i++) {
+      num_verts[i] = stbtt_GetGlyphShape(&font, i, &vertices[i]);
+    }
+
     unsigned char* bitmap = (unsigned char*)malloc(1<<12);
     unsigned char* screenBuffer = (unsigned char*)(malloc(1920*9000));
 
@@ -143,8 +152,12 @@ int main(int argc, char** argv){
             // render glyph to bitmap
             int box_w=x1-x0, box_h=y1-y0;
             memset(bitmap,0,box_w*box_h);
-            stbtt_MakeGlyphBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
-                    scale,scale, x_shift,y_shift,*c);
+
+//            stbtt_MakeGlyphBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
+//                    scale,scale, x_shift,y_shift,*c);
+//
+            stbtt_MakeGlyphBitmapSubpixel2(&font, bitmap, box_w,
+                box_h, box_w, scale, scale, x_shift, y_shift, *c, vertices, num_verts);
 
 
             for (int yy = 0; yy < box_h; yy++) {
