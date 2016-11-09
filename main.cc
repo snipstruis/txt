@@ -44,7 +44,7 @@ int main(int argc, char** argv){
     {
         unsigned char* text;
         int txt_size = readFile(text_file,&text);
-        glyphs = (int*)malloc(1+txt_size*sizeof(int));
+        glyphs = (int*)malloc((1+txt_size)*sizeof(int));
         for(int i=0; i<txt_size; i++)
             glyphs[i] = stbtt_FindGlyphIndex(&font,text[i]);
         glyphs[txt_size]=-1;
