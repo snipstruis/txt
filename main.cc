@@ -5,6 +5,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
+#include <xmmintrin.h>
 #include <cstring>
 #include <cstdio>
 #include <chrono>
@@ -144,12 +145,14 @@ int main(int argc, char** argv){
             stbtt_MakeGlyphBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
                     scale,scale, x_shift,y_shift,*c);
 
+
             for (int yy = 0; yy < box_h; yy++) {
+              size_t idx = int(floor(x)) + x0 + (int(floor(y))+ yy + y0)*w;
               for (int xx = 0;  xx < box_w; xx++) {
                 unsigned char pix = bitmap[xx+yy*box_w];
-                size_t idx = int(floor(x)) + x0 + xx + (int(floor(y))+ yy + y0)*w;
-                unsigned char* p = &screenBuffer[idx];
+                unsigned char* p = &screenBuffer[idx + xx];
                 //unsigned char* p = screenBuffer + int(x) + x0 + xx + int(y)*w + ((yy+y0)*w);
+                // 18 percent of all cache misses happen here
                 int val = (int)(*p) + (int)pix;
                 if (val > 255) {
                   val = 255;
