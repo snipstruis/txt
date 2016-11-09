@@ -383,6 +383,12 @@ int main(int arg, char **argv)
 ////   The following sections allow you to supply alternate definitions
 ////   of C library functions used by stb_truetype.
 
+#ifdef STB_TRUETYPE_SIMD
+#include <xmmintrin.h>
+#include <smmintrin.h>
+#include <stdint.h>
+#include <alloca.h>
+#endif
 #ifdef STB_TRUETYPE_IMPLEMENTATION
    // #define your own (u)stbtt_int8/16/32 before including to override this
    #ifndef stbtt_uint8
@@ -2143,7 +2149,81 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
 
       {
+
+#ifdef STB_TRUETYPE_SIMD      
+
+        
+         static float sums[256] __attribute__((aligned(16)));
+
+
+         // perform a prefix sum
          float sum = 0;
+         for (i = 0; i < result->w; i ++) {
+           sum += scanline2[i];
+           sums[i] = sum;
+         }
+
+         // here follows highly dangerous and srsly optimized code
+         for (i = 0; i < result->w / 4; i+=4) {
+          __m128 k128;
+          union {
+            __m128i m128;
+            uint32_t bytes[4]; // srry i lied
+          };
+
+          __m128 sum128;
+          sum128 = _mm_load_ps(sums + i);
+          k128   = _mm_add_ps(_mm_loadu_ps(scanline + i), sum128);
+
+          // calculate the absolute value of k128 by masking bit 31
+          __m128 mask;
+          mask = _mm_castsi128_ps(_mm_set1_epi32(0x7FFFFFFF));
+          k128 = _mm_and_pd (mask, k128);
+
+          k128 = _mm_mul_ps(k128, _mm_set1_ps(255.0f));
+          k128 = _mm_add_ps(k128, _mm_set1_ps(0.5f));
+          m128 = _mm_cvtps_epi32(k128);
+          m128 = _mm_min_epi32(_mm_set1_epi32(255), m128);
+
+          for (int v = 0; v < 4; v++) {
+            result->pixels[j*result->stride+i+v] = bytes[v];
+          }
+
+          /*union {
+            __m64 m64;
+            uint32_t a[2];
+          };
+
+          m64 = _mm_cvtps_pi8(k128);
+
+          // scary as fuck
+          uint32_t* p =
+            (uint32_t*) (result->pixels + j*result->stride + i);
+          *p = a[1];
+          */
+
+         }
+
+         // TODO: horizontal add
+         
+         // the rest. TODO make sure float sum is sensible
+         //
+         int rest = result->w + (result->w & 0x03);
+         for (; i < rest; i++) {
+            float k;
+            int m;
+            k = scanline[i] + sums[i];
+
+            // convert float 0..1 to byte 0..255
+            // this is round()
+            k = (float) STBTT_fabs(k)*255 + 0.5f;
+            m = (int) k;
+            if (m > 255) m = 255;
+
+            result->pixels[j*result->stride + i] = (unsigned char) m;
+         }
+
+#elif
          for (i=0; i < result->w; ++i) {
             float k;
             int m;
@@ -2154,6 +2234,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
             if (m > 255) m = 255;
             result->pixels[j*result->stride + i] = (unsigned char) m;
          }
+#endif
       }
       // advance all the edges
       step = &active;

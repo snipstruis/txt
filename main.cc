@@ -1,4 +1,5 @@
 #define STB_TRUETYPE_IMPLEMENTATION
+#define STB_TRUETYPE_SIMD
 #include "stb_truetype.h"
 
 #define GL_GLEXT_PROTOTYPES
@@ -147,10 +148,10 @@ int main(int argc, char** argv){
 
 
             for (int yy = 0; yy < box_h; yy++) {
-              size_t idx = int(floor(x)) + x0 + (int(floor(y))+ yy + y0)*w;
+              ptrdiff_t off = int(floor(x)) + x0 + (int(floor(y))+ yy + y0)*w;
               for (int xx = 0;  xx < box_w; xx++) {
                 unsigned char pix = bitmap[xx+yy*box_w];
-                unsigned char* p = &screenBuffer[idx + xx];
+                unsigned char* p = screenBuffer + off + xx;
                 //unsigned char* p = screenBuffer + int(x) + x0 + xx + int(y)*w + ((yy+y0)*w);
                 // 18 percent of all cache misses happen here
                 int val = (int)(*p) + (int)pix;
