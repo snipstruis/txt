@@ -80,7 +80,7 @@ int main(int argc, char** argv){
         int ascent,descent,linegap; stbtt_GetFontVMetrics(&font,&ascent,&descent,&linegap);
         float baseline = (float)ascent*scale;
         float x= 0.1*w;
-        float y = 0.1*h - baseline;
+        float y = 0.2*h - baseline;
 
 #if 0   // draw base line
         glBegin(GL_LINES);
@@ -147,7 +147,9 @@ int main(int argc, char** argv){
             for (int yy = 0; yy < box_h; yy++) {
               for (int xx = 0;  xx < box_w; xx++) {
                 unsigned char pix = bitmap[xx+yy*box_w];
-                unsigned char* p = screenBuffer + int(x) + x0 + xx + int(y)*w + ((yy+y0)*w);
+                size_t idx = int(floor(x)) + x0 + xx + (int(floor(y))+ yy + y0)*w;
+                unsigned char* p = &screenBuffer[idx];
+                //unsigned char* p = screenBuffer + int(x) + x0 + xx + int(y)*w + ((yy+y0)*w);
                 int val = (int)(*p) + (int)pix;
                 if (val > 255) {
                   val = 255;
