@@ -41,6 +41,10 @@ int main(int argc, char** argv){
     stbtt_fontinfo font;
     stbtt_InitFont(&font, ttf, stbtt_GetFontOffsetForIndex(ttf,0));
 
+    {
+
+
+    }
     // load text
     int* glyphs;
     {
@@ -59,10 +63,20 @@ int main(int argc, char** argv){
 
     stbtt_vertex **vertices;
     vertices = (stbtt_vertex **)malloc(1024*sizeof(stbtt_vertex*));
+
+    int contour_counts[1024];
     int num_verts[1024];
 
     for (int i = 0; i < 1024; i++) {
       num_verts[i] = stbtt_GetGlyphShape(&font, i, &vertices[i]);
+
+      int n = 0;
+      for (int j=0; j < num_verts[i]; ++j) {
+        if (vertices[i][j].type == STBTT_vmove) {
+          ++n;
+        }
+      }
+      contour_counts[i] = n;
     }
 
     unsigned char* screenBuffer = (unsigned char*)(malloc(1920*9000));
@@ -155,7 +169,7 @@ int main(int argc, char** argv){
 //                    scale,scale, x_shift,y_shift,*c);
 //
             stbtt_MakeGlyphBitmapSubpixel2(&font, screenBuffer + int(x) + x0 + (int(y)+y0)*w, box_w,
-                box_h, w, scale, scale, x_shift, y_shift, *c, vertices, num_verts);
+                box_h, w, scale, scale, x_shift, y_shift, *c, vertices, num_verts, contour_counts[*c]);
 
 
             // advance the x position with the correct ammount

@@ -830,7 +830,8 @@ STBTT_DEF void stbtt_Rasterize(stbtt__bitmap *result,        // 1-channel bitmap
                                float shift_x, float shift_y, // translation applied to input vertices
                                int x_off, int y_off,         // another translation applied to input
                                int invert,                   // if non-zero, vertically flip shape
-                               void *userdata);              // context for to STBTT_MALLOC
+                               void *userdata,               // context for to STBTT_MALLOC
+                               int contour_count);           // how many contours does this glyph have
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -2462,7 +2463,7 @@ static int stbtt__tesselate_curve(stbtt__point *points, int *num_points, float x
 }
 
 // returns number of contours
-static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, float objspace_flatness, int **contour_lengths, int *num_contours, void *userdata)
+static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, float objspace_flatness, int **contour_lengths,  void *userdata, int num_contours)
 {
    stbtt__point *points=0;
    int num_points=0;
@@ -2470,18 +2471,20 @@ static stbtt__point *stbtt_FlattenCurves(stbtt_vertex *vertices, int num_verts, 
    float objspace_flatness_squared = objspace_flatness * objspace_flatness;
    int i,n=0,start=0, pass;
 
+   n = num_contours;
+
    // count how many "moves" there are to get the contour count
-   for (i=0; i < num_verts; ++i)
+   /*for (i=0; i < num_verts; ++i)
       if (vertices[i].type == STBTT_vmove)
          ++n;
 
-   *num_contours = n;
+   *num_contours = n;*/
    if (n == 0) return 0;
 
    *contour_lengths = (int *) STBTT_malloc(sizeof(**contour_lengths) * n, userdata);
 
    if (*contour_lengths == 0) {
-      *num_contours = 0;
+      num_contours = 0;
       return 0;
    }
 
@@ -2527,17 +2530,16 @@ error:
    STBTT_free(points, userdata);
    STBTT_free(*contour_lengths, userdata);
    *contour_lengths = 0;
-   *num_contours = 0;
    return NULL;
 }
 
-STBTT_DEF void stbtt_Rasterize(stbtt__bitmap *result, float flatness_in_pixels, stbtt_vertex *vertices, int num_verts, float scale_x, float scale_y, float shift_x, float shift_y, int x_off, int y_off, int invert, void *userdata)
+STBTT_DEF void stbtt_Rasterize(stbtt__bitmap *result, float flatness_in_pixels, stbtt_vertex *vertices, int num_verts, float scale_x, float scale_y, float shift_x, float shift_y, int x_off, int y_off, int invert, void *userdata, int contour_count)
 {
    float scale = scale_x > scale_y ? scale_y : scale_x;
-   int winding_count, *winding_lengths;
-   stbtt__point *windings = stbtt_FlattenCurves(vertices, num_verts, flatness_in_pixels / scale, &winding_lengths, &winding_count, userdata);
+   int *winding_lengths;
+   stbtt__point *windings = stbtt_FlattenCurves(vertices, num_verts, flatness_in_pixels / scale, &winding_lengths,  userdata, contour_count);
    if (windings) {
-      stbtt__rasterize(result, windings, winding_lengths, winding_count, scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, userdata);
+      stbtt__rasterize(result, windings, winding_lengths, contour_count, scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, userdata);
       STBTT_free(winding_lengths, userdata);
       STBTT_free(windings, userdata);
    }
@@ -2581,7 +2583,7 @@ STBTT_DEF unsigned char *stbtt_GetGlyphBitmapSubpixel(const stbtt_fontinfo *info
       if (gbm.pixels) {
          gbm.stride = gbm.w;
 
-         stbtt_Rasterize(&gbm, 0.35f, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, ix0, iy0, 1, info->userdata);
+         //stbtt_Rasterize(&gbm, 0.35f, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, ix0, iy0, 1, info->userdata);
       }
    }
    STBTT_free(vertices, info->userdata);
@@ -2594,7 +2596,7 @@ STBTT_DEF unsigned char *stbtt_GetGlyphBitmap(const stbtt_fontinfo *info, float 
    return stbtt_GetGlyphBitmapSubpixel(info, scale_x, scale_y, 0.0f, 0.0f, glyph, width, height, xoff, yoff);
 }
 
-STBTT_DEF void stbtt_MakeGlyphBitmapSubpixel2(const stbtt_fontinfo *info, unsigned char *output, int out_w, int out_h, int out_stride, float scale_x, float scale_y, float shift_x, float shift_y, int glyph, stbtt_vertex **vertices, int *num_verts)
+STBTT_DEF void stbtt_MakeGlyphBitmapSubpixel2(const stbtt_fontinfo *info, unsigned char *output, int out_w, int out_h, int out_stride, float scale_x, float scale_y, float shift_x, float shift_y, int glyph, stbtt_vertex **vertices, int *num_verts, int contour_count)
 {
    int ix0,iy0;
    stbtt__bitmap gbm;   
@@ -2605,8 +2607,10 @@ STBTT_DEF void stbtt_MakeGlyphBitmapSubpixel2(const stbtt_fontinfo *info, unsign
    gbm.h = out_h;
    gbm.stride = out_stride;
 
+
+
    if (gbm.w && gbm.h)
-      stbtt_Rasterize(&gbm, 0.35f, vertices[glyph], num_verts[glyph], scale_x, scale_y, shift_x, shift_y, ix0,iy0, 1, info->userdata);
+      stbtt_Rasterize(&gbm, 0.35f, vertices[glyph], num_verts[glyph], scale_x, scale_y, shift_x, shift_y, ix0,iy0, 1, info->userdata, contour_count);
 
 }
 
@@ -2624,7 +2628,7 @@ STBTT_DEF void stbtt_MakeGlyphBitmapSubpixel(const stbtt_fontinfo *info, unsigne
    gbm.stride = out_stride;
 
    if (gbm.w && gbm.h)
-      stbtt_Rasterize(&gbm, 0.35f, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, ix0,iy0, 1, info->userdata);
+      //stbtt_Rasterize(&gbm, 0.35f, vertices, num_verts, scale_x, scale_y, shift_x, shift_y, ix0,iy0, 1, info->userdata);
 
    STBTT_free(vertices, info->userdata);
 }
