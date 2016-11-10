@@ -2164,7 +2164,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          }
 
          // here follows highly dangerous and srsly optimized code
-         for (i = 0; i < result->w / 4; i+=4) {
+         for (i = 0; i < result->w-3; i+=4) {
             // _mm_cvtps_pi8
 
           __m128 k128;
@@ -2192,27 +2192,12 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
             result->pixels[j*result->stride+i+v] = bytes[v];
           }
 
-          /*union {
-            __m64 m64;
-            uint32_t a[2];
-          };
-
-          m64 = _mm_cvtps_pi8(k128);
-
-          // scary as fuck
-          uint32_t* p =
-            (uint32_t*) (result->pixels + j*result->stride + i);
-          *p = a[1];
-          */
-
          }
 
          // TODO: horizontal add
          
          // the rest. TODO make sure float sum is sensible
-         //
-         int rest = result->w & 0x03;
-         for (; i < result->w + rest; i++) {
+         for (; i < result->w; i++) {
             float k;
             int m;
             k = scanline[i] + sums[i];
