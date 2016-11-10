@@ -2189,7 +2189,12 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
           m128 = _mm_min_epi32(_mm_set1_epi32(255), m128);
 
           for (int v = 0; v < 4; v++) {
-            result->pixels[j*result->stride+i+v] = bytes[v];
+            int k = result->pixels[j*result->stride+i+v] ;
+            k += bytes[v];
+            if (k > 255) {
+              k = 255;
+            }
+            result->pixels[j*result->stride+i+v] = k;
           }
 
          }
@@ -2208,7 +2213,11 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
             m = (int) k;
             if (m > 255) m = 255;
 
-            result->pixels[j*result->stride + i] = (unsigned char) m;
+            int r = result->pixels[j*result->stride + i];
+            r += m;
+            if (r > 255) r = 255;
+
+            result->pixels[j*result->stride + i] = (unsigned char) r;
          }
 
 #elif

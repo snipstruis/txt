@@ -65,7 +65,6 @@ int main(int argc, char** argv){
       num_verts[i] = stbtt_GetGlyphShape(&font, i, &vertices[i]);
     }
 
-    unsigned char* bitmap = (unsigned char*)malloc(1<<12);
     unsigned char* screenBuffer = (unsigned char*)(malloc(1920*9000));
 
     std::vector<double> frametimes;
@@ -151,29 +150,13 @@ int main(int argc, char** argv){
 
             // render glyph to bitmap
             int box_w=x1-x0, box_h=y1-y0;
-            memset(bitmap,0,box_w*box_h);
 
 //            stbtt_MakeGlyphBitmapSubpixel(&font,bitmap,box_w,box_h,box_w,
 //                    scale,scale, x_shift,y_shift,*c);
 //
-            stbtt_MakeGlyphBitmapSubpixel2(&font, bitmap, box_w,
-                box_h, box_w, scale, scale, x_shift, y_shift, *c, vertices, num_verts);
+            stbtt_MakeGlyphBitmapSubpixel2(&font, screenBuffer + int(x) + x0 + (int(y)+y0)*w, box_w,
+                box_h, w, scale, scale, x_shift, y_shift, *c, vertices, num_verts);
 
-
-            for (int yy = 0; yy < box_h; yy++) {
-              ptrdiff_t off = int(floor(x)) + x0 + (int(floor(y))+ yy + y0)*w;
-              for (int xx = 0;  xx < box_w; xx++) {
-                unsigned char pix = bitmap[xx+yy*box_w];
-                unsigned char* p = screenBuffer + off + xx;
-                //unsigned char* p = screenBuffer + int(x) + x0 + xx + int(y)*w + ((yy+y0)*w);
-                // 18 percent of all cache misses happen here
-                int val = (int)(*p) + (int)pix;
-                if (val > 255) {
-                  val = 255;
-                }
-                *p = val;
-              }
-            }
 
             // advance the x position with the correct ammount
             int advance; 
@@ -198,6 +181,5 @@ int main(int argc, char** argv){
         printf("%.3f\n",res/30);
     }
     free(screenBuffer);
-    free(bitmap);
     free(glyphs);
 }
